@@ -58,7 +58,7 @@ jobs:
           mkdir -p out/release
           if [ "$SYSTEM" = windows ]; then
             archive="out/release/rewatch-latest-${SYSTEM}-${ARCH}.zip"
-            (cd zig-out/bin && zip -q "$OLDPWD/$archive" rewatch.exe)
+            powershell -NoProfile -Command "Compress-Archive -Force -Path 'zig-out/bin/rewatch.exe' -DestinationPath '$archive'"
           else
             archive="out/release/rewatch-latest-${SYSTEM}-${ARCH}.tar.gz"
             tar -czf "$archive" -C zig-out/bin rewatch

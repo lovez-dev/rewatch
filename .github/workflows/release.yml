@@ -57,13 +57,11 @@ jobs:
           set -eu
           mkdir -p out/release
           if [ "$SYSTEM" = windows ]; then
-            exe=rewatch.exe
             archive="out/release/rewatch-${TAG}-${SYSTEM}-${ARCH}.zip"
-            (cd zig-out/bin && zip -q "$OLDPWD/$archive" "$exe")
+            powershell -NoProfile -Command "Compress-Archive -Force -Path 'zig-out/bin/rewatch.exe' -DestinationPath '$archive'"
           else
-            exe=rewatch
             archive="out/release/rewatch-${TAG}-${SYSTEM}-${ARCH}.tar.gz"
-            tar -czf "$archive" -C zig-out/bin "$exe"
+            tar -czf "$archive" -C zig-out/bin rewatch
           fi
           (cd out/release && sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256")
       - uses: actions/upload-artifact@v4

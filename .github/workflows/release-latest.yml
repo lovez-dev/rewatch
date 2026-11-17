@@ -44,9 +44,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Read pinned Zig version
+        id: zig
+        run: echo "version=$(cat .zigversion)" >> "$GITHUB_OUTPUT"
       - uses: mlugg/setup-zig@v2
         with:
-          version-file: .zigversion
+          version: ${{ steps.zig.outputs.version }}
       - name: Build release executable
         run: zig build -Doptimize=ReleaseSafe -Dcpu=baseline -Dtarget=${{ matrix.target }}
       - name: Package archive

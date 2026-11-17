@@ -39,9 +39,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13.9'
+      - name: Read pinned Zig version
+        id: zig
+        run: echo "version=$(cat .zigversion)" >> "$GITHUB_OUTPUT"
       - uses: mlugg/setup-zig@v2
         with:
-          version-file: .zigversion
+          version: ${{ steps.zig.outputs.version }}
       - name: Check formatting
         run: zig fmt --check build.zig build.zig.zon src tests examples
       - name: Compile tests for target

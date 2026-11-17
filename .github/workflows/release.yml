@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Package (${{ matrix.target }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-linux.5.10-musl
+            system: linux
+            arch: x86_64
+          - runner: windows-2025
+            target: x86_64-windows-gnu
+            system: windows
+            arch: x86_64
+          - runner: macos-15
+            target: aarch64-macos.15.0-none
+            system: macos
+            arch: aarch64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: mlugg/setup-zig@v2
+        with:
+          version-file: .zigversion
+      - name: Build release executable
+        run: zig build -Doptimize=ReleaseSafe -Dcpu=baseline -Dtarget=${{ matrix.target }}
+      - name: Package archive
+        env:
+          SYSTEM: ${{ matrix.system }}
+          ARCH: ${{ matrix.arch }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p out/release
+          if [ "$SYSTEM" = windows ]; then
+            exe=rewatch.exe
+            archive="out/release/rewatch-${TAG}-${SYSTEM}-${ARCH}.zip"
+            (cd zig-out/bin && zip -q "$OLDPWD/$archive" "$exe")
+          else
+            exe=rewatch
+            archive="out/release/rewatch-${TAG}-${SYSTEM}-${ARCH}.tar.gz"
+            tar -czf "$archive" -C zig-out/bin "$exe"
+          fi
+          (cd out/release && sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: out/release/*
+          if-no-files-found: error
+          retention-days: 7
+      - name: Clean temporary artifacts
+        if: always()
+        run: rm -rf out
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: out/release
+      - name: Verify checksums and combine
+        working-directory: out/release
+        run: |
+          set -eu
+          sha256sum -c *.sha256
+          cat *.sha256 > SHA256SUMS
+      - name: Create GitHub release
+        run: gh release create "${GITHUB_REF_NAME}" out/release/*.zip out/release/*.tar.gz out/release/SHA256SUMS --generate-notes --title "${GITHUB_REF_NAME}"

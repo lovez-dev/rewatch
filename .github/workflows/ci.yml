@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-linux.5.10-musl
+          - runner: windows-2025
+            target: x86_64-windows-gnu
+          - runner: macos-15
+            target: aarch64-macos.15.0-none
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13.9'
+      - uses: mlugg/setup-zig@v2
+        with:
+          version-file: .zigversion
+      - name: Check formatting
+        run: zig fmt --check build.zig build.zig.zon src tests examples
+      - name: Compile tests for target
+        run: zig build test-compile -Dtarget=${{ matrix.target }} -Dcpu=baseline
+      - name: Run tests
+        run: zig build test -Doptimize=ReleaseSafe
+      - name: Run HTTP proxy tests
+        run: zig build test-proxy -Dpython=python
+      - name: Build release executable
+        run: zig build -Doptimize=ReleaseSafe -Dcpu=baseline -Dtarget=${{ matrix.target }}

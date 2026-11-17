@@ -1,0 +1,17 @@
+.{
+    .name = .rewatch,
+    .version = "0.1.0",
+    .fingerprint = 0x288b3daefd1eeb8b,
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        ".zigversion",
+        "src",
+        "tests",
+        "examples",
+        "README.md",
+        "LICENSE",
+    },
+}

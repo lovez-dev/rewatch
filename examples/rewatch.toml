@@ -1,0 +1,12 @@
+# Run from the repository root with: zig build run -- --config examples/rewatch.toml
+pre-command = [
+    ["zig", "fmt", "--check", "examples/heartbeat.zig"],
+    ["zig", "version"],
+]
+command = ["zig", "run", "examples/heartbeat.zig"]
+cwd = ".."
+watch = ["examples"]
+ignore = ["*.tmp"]
+debounce = "150ms"
+poll-interval = "300ms"
+stop-timeout = "2s"
